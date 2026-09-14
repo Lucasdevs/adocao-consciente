@@ -1,0 +1,15 @@
+.tools/
+node_modules/
+dist/
+target/
+.angular/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+data/
+*.log
+.local/

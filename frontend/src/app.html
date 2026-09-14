@@ -1,0 +1,145 @@
+<a class="skip-link" href="#main">Pular para o conteúdo</a>
+<header class="header">
+  <button class="brand" (click)="navigate('catalogo')" aria-label="Adoção Consciente, início"><span class="brand-mark" aria-hidden="true">ac</span><span>Adoção<br><strong>Consciente</strong></span></button>
+  <nav aria-label="Navegação principal">
+    <button [attr.aria-current]="view() === 'catalogo' ? 'page' : null" (click)="navigate('catalogo')">Quero adotar</button>
+    <button [attr.aria-current]="view() === 'orientacoes' ? 'page' : null" (click)="navigate('orientacoes')">Adoção responsável</button>
+    @if (user()) {
+      @if (user()!.role === 'RESPONSAVEL') { <button [attr.aria-current]="view() === 'animais' ? 'page' : null" (click)="navigate('animais')">Meus animais</button> }
+      <button [attr.aria-current]="view() === 'pedidos' ? 'page' : null" (click)="navigate('pedidos')">{{ user()!.role === 'RESPONSAVEL' ? 'Solicitações recebidas' : 'Minhas solicitações' }}</button>
+    }
+  </nav>
+  <div class="account">
+    @if (user()) { <span>{{ user()!.name }}</span><button class="button secondary small" [disabled]="busy()" (click)="logout()">Sair</button> }
+    @else { <button class="button small" (click)="showAuth()">Entrar / cadastrar</button> }
+  </div>
+</header>
+@if (demo()) { <div class="demo-banner">Ambiente de demonstração do TCC · Animais e contas de exemplo são fictícios.</div> }
+<main id="main" tabindex="-1">
+  @if (error() && !modal()) { <div class="feedback error" role="alert">{{ error() }} <button (click)="refresh()">Tentar novamente</button></div> }
+  @if (notice()) { <div class="feedback success" role="status">{{ notice() }}</div> }
+  @if (view() === 'catalogo') {
+    <section class="page-intro"><div><p class="eyebrow">UM NOVO COMEÇO</p><h1>Encontre seu próximo<br><span>melhor amigo.</span></h1><p>Conheça os animais e suas necessidades.<br>A adoção começa com uma escolha consciente.</p></div><div class="intro-note"><span aria-hidden="true">01 /</span><p>Conheça.<br>Prepare-se.<br><strong>Acolha com cuidado.</strong></p></div></section>
+    <form class="filters" (ngSubmit)="refresh()">
+      <label class="search">Nome ou cidade<input name="query" [(ngModel)]="query" placeholder="Ex.: Campina Grande" maxlength="100"></label>
+      <label>Espécie<select name="species" [(ngModel)]="species"><option value="">Todas</option><option value="CAO">Cães</option><option value="GATO">Gatos</option></select></label>
+      <label>Porte<select name="size" [(ngModel)]="size"><option value="">Todos</option><option value="PEQUENO">Pequeno</option><option value="MEDIO">Médio</option><option value="GRANDE">Grande</option></select></label>
+      <button class="button" [disabled]="loading()">Buscar animais</button>
+    </form>
+    <div class="section-line"><h2>Esperando por um lar</h2><span>{{ animals().length }} {{ animals().length === 1 ? 'animal disponível' : 'animais disponíveis' }}</span></div>
+  }
+  @if (view() === 'animais') {
+    <section class="page-title"><div><p class="eyebrow">ESPAÇO DO RESPONSÁVEL</p><h1>Meus animais</h1><p>Mantenha os perfis atualizados para ajudar os adotantes a decidir.</p></div><button class="button" (click)="editAnimal()">+ Cadastrar animal</button></section>
+  }
+  @if (view() === 'catalogo' || view() === 'animais') {
+    @if (loading()) { <p class="empty" role="status">Carregando animais…</p> }
+    @else if (!animals().length) { <div class="empty"><h2>{{ view() === 'animais' ? 'Comece pelo primeiro perfil.' : 'Nenhum animal encontrado.' }}</h2><p>{{ view() === 'animais' ? 'Cadastre um animal para receber solicitações de adoção.' : 'Tente outra cidade ou amplie os filtros de busca.' }}</p></div> }
+    @else {
+      <section class="animal-grid" aria-label="Animais">
+        @for (animal of animals(); track animal.id) {
+          <article class="animal-card">
+            <button class="photo" (click)="showAnimal(animal)" [attr.aria-label]="'Conhecer ' + animal.name">
+              <span class="photo-fallback">{{ labels[animal.species] }} · {{ animal.name }}</span>
+              @if (animal.photoUrl) { <img [src]="animal.photoUrl" [alt]="animal.name" loading="lazy" referrerpolicy="no-referrer" (error)="imageFailed($event)"> }
+              <span class="badge" [class.available]="animal.status === 'DISPONIVEL'">{{ labels[animal.status] }}</span>
+            </button>
+            <div class="card-content"><div class="card-title"><h3>{{ animal.name }}</h3><span>{{ labels[animal.species] }}</span></div><p class="location">{{ animal.city }}</p><p class="traits">{{ age(animal.ageMonths) }} <span>·</span> Porte {{ labels[animal.size].toLowerCase() }}</p><p class="description-preview">{{ animal.description }}</p><button class="card-action" (click)="view() === 'animais' ? editAnimal(animal) : showAnimal(animal)">{{ view() === 'animais' ? 'Editar perfil' : 'Conhecer ' + animal.name }} <span aria-hidden="true">↗</span></button></div>
+          </article>
+        }
+      </section>
+    }
+    @if (view() === 'catalogo') { <aside class="care-strip"><h2>Um lar é um compromisso<br>para a vida toda.</h2><p>Tempo, segurança, alimentação e cuidados veterinários fazem parte dessa escolha.</p><button class="button secondary" (click)="navigate('orientacoes')">Como me preparar</button></aside> }
+  }
+  @if (view() === 'pedidos') {
+    <section class="page-title"><div><p class="eyebrow">CADA PEDIDO, UMA POSSIBILIDADE</p><h1>{{ user()?.role === 'RESPONSAVEL' ? 'Solicitações recebidas' : 'Minhas solicitações' }}</h1><p>A aprovação inicia a avaliação final. A adoção é confirmada pelo responsável.</p></div></section>
+    @if (loading()) { <p class="empty" role="status">Carregando solicitações…</p> }
+    @else if (!requests().length) { <div class="empty"><h2>Nenhuma solicitação por aqui.</h2><p>{{ user()?.role === 'ADOTANTE' ? 'Conheça os animais disponíveis para dar o primeiro passo.' : 'Os pedidos dos seus animais aparecerão aqui.' }}</p></div> }
+    @else { <div class="request-list">
+      @for (request of requests(); track request.id) {
+        <article class="request-card"><div class="request-heading"><div><p class="eyebrow">PEDIDO #{{ request.id }} · {{ request.createdAt | date:'dd/MM/yyyy' }}</p><h2>{{ request.animal.name }}</h2><p>{{ request.animal.city }}</p></div><span class="status" [attr.data-status]="request.status">{{ labels[request.status] }}</span></div>
+          @if (user()?.role === 'RESPONSAVEL') { <p><strong>{{ request.adopter.name }}</strong> · <a [href]="'mailto:' + request.adopter.email">{{ request.adopter.email }}</a></p> }
+          <details><summary>{{ user()?.role === 'RESPONSAVEL' ? 'Ler questionário do adotante' : 'Ver minhas respostas' }}</summary><dl><dt>Moradia e segurança</dt><dd>{{ request.housing }}</dd><dt>Rotina e disponibilidade</dt><dd>{{ request.routine }}</dd><dt>Experiência com animais</dt><dd>{{ request.experience }}</dd></dl><p>Compromisso com os cuidados confirmado no envio.</p></details>
+          @if (request.decisionNote) { <p class="decision-note"><strong>Observação do pedido:</strong> {{ request.decisionNote }}</p> }
+          @if (request.status === 'APROVADA') { <p class="next-step">Próximo passo: conversar com o responsável e combinar a avaliação e o encontro. A adoção ainda não foi concluída.</p> }
+          <div class="actions">
+            @if (user()?.role === 'RESPONSAVEL') {
+              @if (request.status === 'PENDENTE') { <button class="button small" [disabled]="request.animal.status !== 'DISPONIVEL'" (click)="prepareDecision(request, 'APROVADA')">Aprovar para avaliação</button><button class="button secondary small" (click)="prepareDecision(request, 'RECUSADA')">Recusar</button> }
+              @if (request.status === 'APROVADA') { <button class="button small" (click)="prepareDecision(request, 'CONCLUIDA')">Confirmar adoção</button><button class="button secondary small" (click)="prepareDecision(request, 'RECUSADA')">Encerrar e reabrir adoção</button> }
+            } @else if (request.status === 'PENDENTE') { <button class="button secondary small" (click)="prepareDecision(request, 'CANCELADA')">Cancelar solicitação</button> }
+          </div>
+        </article>
+      }
+    </div> }
+  }
+  @if (view() === 'orientacoes') {
+    <section class="page-title"><div><p class="eyebrow">ANTES DO SIM</p><h1>Adoção responsável</h1><p>Uma decisão informada ajuda a construir uma convivência duradoura.</p></div></section>
+    <div class="guide-grid">
+      <article><span class="guide-number">01</span><h2>Olhe para sua rotina</h2><p>Converse com todas as pessoas da casa. Considere o tempo para companhia, passeios, limpeza e adaptação, inclusive em viagens e mudanças.</p></article>
+      <article><span class="guide-number">02</span><h2>Planeje os cuidados</h2><p>Inclua alimentação, higiene e atendimento veterinário no orçamento. Reserve recursos para necessidades inesperadas e converse com o responsável sobre o histórico do animal.</p></article>
+      <article><span class="guide-number">03</span><h2>Prepare um lar seguro</h2><p>Verifique portões, janelas e rotas de fuga. Prepare um espaço tranquilo com água, alimentação e descanso. Confira se a moradia permite animais.</p></article>
+      <article><span class="guide-number">04</span><h2>Conheça antes de decidir</h2><p>Pergunte sobre comportamento, convivência e necessidades específicas. Combine um encontro com o responsável e tire suas dúvidas antes de confirmar a adoção.</p></article>
+      <article><span class="guide-number">05</span><h2>Respeite a adaptação</h2><p>A chegada a um novo lar exige paciência. Faça apresentações graduais e busque orientação profissional quando necessário.</p></article>
+      <article><span class="guide-number">06</span><h2>Assuma o compromisso</h2><p>O cuidado continua por toda a vida do animal. Se surgir uma dificuldade, procure apoio e converse com o responsável; nunca abandone o animal.</p></article>
+    </div>
+    <div class="guide-footer"><p>As informações do perfil são fornecidas pelo responsável. A plataforma facilita o contato e não substitui a avaliação das condições de adoção.</p><button class="button" (click)="navigate('catalogo')">Conhecer os animais</button></div>
+  }
+</main>
+<footer><strong>Adoção Consciente</strong><span>Projeto acadêmico · Sistemas de Informação · Unifacisa</span><details><summary>Créditos das imagens de demonstração</summary><p>Fotos: <a href="https://www.pexels.com/photo/cute-dog-on-leash-14585236/" target="_blank" rel="noopener noreferrer">Ja Kubislav</a> e <a href="https://www.pexels.com/photo/cute-little-cat-5263848/" target="_blank" rel="noopener noreferrer">KATRIN BOLOVTSOVA</a>, sob a <a href="https://www.pexels.com/license/" target="_blank" rel="noopener noreferrer">licença Pexels</a>. Exibição com recorte visual. Animais fictícios.</p></details></footer>
+
+<dialog #dialog (cancel)="cancelDialog($event)" aria-labelledby="dialog-title">
+  <div class="dialog-top"><span class="eyebrow">ADOÇÃO CONSCIENTE</span><button class="close" type="button" aria-label="Fechar" [disabled]="busy()" (click)="close()">×</button></div>
+  @if (error()) { <div class="feedback error" role="alert">{{ error() }}</div> }
+  @if (modal() === 'auth') {
+    <h2 id="dialog-title">{{ authMode === 'login' ? 'Bem-vindo de volta.' : 'Faça parte deste começo.' }}</h2>
+    <div class="auth-switch"><button type="button" [class.active]="authMode === 'login'" (click)="authMode = 'login'">Entrar</button><button type="button" [class.active]="authMode === 'register'" (click)="authMode = 'register'">Criar conta</button></div>
+    <form #authValid="ngForm" (ngSubmit)="authenticate()" class="form-stack">
+      @if (authMode === 'register') { <label>Seu nome ou nome da organização<input name="name" [(ngModel)]="authForm.name" required maxlength="100" autocomplete="name"></label><label>Como você vai usar a plataforma?<select name="role" [(ngModel)]="authForm.role"><option value="ADOTANTE">Quero adotar</option><option value="RESPONSAVEL">Sou responsável por animais</option></select></label><p class="help">O perfil de responsável é autodeclarado e não representa uma organização verificada.</p> }
+      <label>E-mail<input type="email" name="email" [(ngModel)]="authForm.email" required email maxlength="254" autocomplete="email"></label>
+      <label>Senha<input type="password" name="password" [(ngModel)]="authForm.password" required [minlength]="authMode === 'register' ? 10 : 1" maxlength="64" [autocomplete]="authMode === 'register' ? 'new-password' : 'current-password'"></label>
+      @if (authMode === 'register') { <p class="help">Use ao menos 10 caracteres. Seu e-mail será compartilhado apenas com o responsável ao solicitar uma adoção.</p> }
+      <button class="button" [disabled]="busy() || authValid.invalid">{{ busy() ? 'Aguarde…' : authMode === 'login' ? 'Entrar na conta' : 'Criar minha conta' }}</button>
+    </form>
+  }
+  @if (modal() === 'detail' && selected(); as animal) {
+    <h2 id="dialog-title">Conheça {{ animal.name }}</h2>
+    @if (animal.photoUrl) { <img class="detail-image" [src]="animal.photoUrl" [alt]="animal.name" referrerpolicy="no-referrer" (error)="imageFailed($event)"> }
+    <div class="detail-meta"><span>{{ labels[animal.species] }}</span><span>{{ age(animal.ageMonths) }}</span><span>Porte {{ labels[animal.size].toLowerCase() }}</span><span>{{ animal.city }}</span></div>
+    <p class="preserve-lines">{{ animal.description }}</p><h3>Cuidados e necessidades</h3><p class="preserve-lines">{{ animal.care || 'Converse com o responsável sobre os cuidados necessários.' }}</p>
+    <ul class="health"><li>Vacinação: {{ animal.vaccinated ? 'informada como em dia' : 'consultar responsável' }}</li><li>Castração: {{ animal.neutered ? 'informada como realizada' : 'não informada como realizada' }}</li></ul>
+    <p class="help">Responsável: {{ animal.ownerName }} · Informações autodeclaradas.</p>
+    @if (!user()) { <button class="button wide" (click)="showAuth()">Entre para solicitar a adoção</button> }
+    @else if (user()!.role === 'ADOTANTE' && animal.status === 'DISPONIVEL') { <button class="button wide" (click)="startApplication()">Quero adotar {{ animal.name }}</button> }
+    @else { <p class="help">{{ user()!.role === 'RESPONSAVEL' ? 'Use uma conta de adotante para enviar solicitações.' : 'Este animal não está disponível para novos pedidos.' }}</p> }
+  }
+  @if (modal() === 'animal') {
+    <h2 id="dialog-title">{{ editingId ? 'Editar perfil' : 'Cadastrar animal' }}</h2>
+    <form #animalValid="ngForm" (ngSubmit)="saveAnimal()" class="form-stack">
+      <div class="form-row"><label>Nome<input name="name" [(ngModel)]="animalForm.name" required maxlength="80"></label><label>Cidade / UF<input name="city" [(ngModel)]="animalForm.city" required maxlength="100" placeholder="Campina Grande / PB"></label></div>
+      <div class="form-row"><label>Espécie<select name="species" [(ngModel)]="animalForm.species"><option value="CAO">Cão</option><option value="GATO">Gato</option></select></label><label>Porte<select name="size" [(ngModel)]="animalForm.size"><option value="PEQUENO">Pequeno</option><option value="MEDIO">Médio</option><option value="GRANDE">Grande</option></select></label><label>Idade em meses<input type="number" name="ageMonths" [(ngModel)]="animalForm.ageMonths" required min="0" max="480" step="1"></label></div>
+      <label>Sobre o animal<textarea name="description" [(ngModel)]="animalForm.description" required maxlength="3000" rows="3" placeholder="Conte sobre comportamento, convivência e história."></textarea></label>
+      <label>Cuidados e necessidades<textarea name="care" [(ngModel)]="animalForm.care" maxlength="2000" rows="3" placeholder="Informe necessidades específicas e o que o adotante precisa saber."></textarea></label>
+      <label>Link HTTPS da fotografia (opcional)<input name="photoUrl" [(ngModel)]="animalForm.photoUrl" maxlength="1000" placeholder="https://..."></label><p class="help">Use uma fotografia que você tem autorização para publicar. Nesta versão, a foto é informada por link. Nos perfis de exemplo, você pode manter o caminho da imagem incluída.</p>
+      <label class="check"><input type="checkbox" name="vaccinated" [(ngModel)]="animalForm.vaccinated"> Vacinação em dia, conforme histórico disponível</label><label class="check"><input type="checkbox" name="neutered" [(ngModel)]="animalForm.neutered"> Castração realizada</label>
+      <button class="button" [disabled]="busy() || animalValid.invalid">{{ busy() ? 'Salvando…' : 'Salvar perfil' }}</button>
+    </form>
+  }
+  @if (modal() === 'apply') {
+    <h2 id="dialog-title">Um novo lar para {{ selected()?.name }}</h2><p>Suas respostas ajudam o responsável a conhecer as condições de acolhimento. Não inclua documentos, endereço completo ou dados financeiros.</p>
+    <form #applyValid="ngForm" (ngSubmit)="submitApplication()" class="form-stack">
+      <label>Como é sua moradia e como evitará fugas?<textarea name="housing" [(ngModel)]="application.housing" required maxlength="1000" rows="3" placeholder="Tipo de moradia, telas ou portões e concordância das pessoas da casa."></textarea></label>
+      <label>Como o animal fará parte da sua rotina?<textarea name="routine" [(ngModel)]="application.routine" required maxlength="2000" rows="3" placeholder="Tempo sozinho, companhia, passeios e cuidados durante viagens."></textarea></label>
+      <label>Qual sua experiência e preparação?<textarea name="experience" [(ngModel)]="application.experience" required maxlength="2000" rows="3" placeholder="Pode ser sua primeira adoção. Conte como está se preparando."></textarea></label>
+      <label class="check"><input type="checkbox" name="commitment" [(ngModel)]="application.commitment" required> Comprometo-me com alimentação, segurança, atenção e cuidados veterinários durante toda a vida do animal.</label>
+      <p class="help">Ao enviar, seu nome, e-mail e respostas serão compartilhados com {{ selected()?.ownerName }} para analisar este pedido. A solicitação não garante a adoção.</p>
+      <button class="button" [disabled]="busy() || applyValid.invalid || !application.commitment">{{ busy() ? 'Enviando…' : 'Enviar solicitação' }}</button>
+    </form>
+  }
+  @if (modal() === 'decision') {
+    <h2 id="dialog-title">{{ decisionStatus === 'CONCLUIDA' ? 'Confirmar a adoção?' : decisionStatus === 'APROVADA' ? 'Aprovar para avaliação?' : decisionStatus === 'CANCELADA' ? 'Cancelar solicitação?' : 'Encerrar esta solicitação?' }}</h2>
+    <p>Pedido de {{ decisionRequest?.adopter?.name }} para {{ decisionRequest?.animal?.name }}.</p>
+    @if (decisionStatus === 'CONCLUIDA') { <p>Confirme apenas após a adoção ter sido efetivada. O animal sairá do catálogo e os outros pedidos pendentes serão encerrados.</p> }
+    @if (decisionStatus === 'APROVADA') { <p>O animal ficará reservado para este processo. Entre em contato com o adotante para combinar a avaliação e o encontro.</p> }
+    @if (decisionStatus === 'RECUSADA' && decisionRequest?.status === 'APROVADA') { <p>O animal voltará a receber solicitações de adoção.</p> }
+    <form (ngSubmit)="submitDecision()" class="form-stack"><label>Observação (opcional)<textarea name="note" [(ngModel)]="decisionNote" maxlength="1000" rows="3"></textarea></label><div class="actions"><button class="button" [disabled]="busy()">{{ busy() ? 'Salvando…' : 'Confirmar' }}</button><button type="button" class="button secondary" [disabled]="busy()" (click)="close()">Voltar</button></div></form>
+  }
+</dialog>
