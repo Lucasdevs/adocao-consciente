@@ -1,11 +1,13 @@
 package br.edu.unifacisa.adocao;
 
+
 import org.springframework.context.annotation.*;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+
 
 @Configuration
 class SecurityConfig {
@@ -15,6 +17,7 @@ class SecurityConfig {
           .csrf(c -> c.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
           .requestCache(c -> c.disable())
           .authorizeHttpRequests(a -> a
+            .requestMatchers(org.springframework.http.HttpMethod.GET,"/","/index.html","/*.js","/*.css","/assets/**","/images/**","/favicon.ico").permitAll()
             .requestMatchers("/api/auth/**").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET,"/api/animals","/api/animals/*").permitAll()
             .anyRequest().authenticated())
@@ -25,3 +28,4 @@ class SecurityConfig {
           .build();
     }
 }
+
